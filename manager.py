@@ -23,6 +23,51 @@ else:
     raw_input = input
 
 
+
+class RegisterBot(sleekxmpp.ClientXMPP):
+
+    def __init__(self, jid, password):
+        sleekxmpp.ClientXMPP.__init__(self, jid, password)
+        self.add_event_handler("session_start", self.start, threaded=True)
+        self.add_event_handler("register", self.register, threaded=True)
+        
+        # Setup the plugins.
+        self.register_plugin('xep_0030') # Service Discovery
+        self.register_plugin('xep_0004') # Data forms
+        self.register_plugin('xep_0066') # Out-of-band Data
+        self.register_plugin('xep_0077') # In-band Registration
+        
+        # Some servers don't advertise support for inband registration, even
+        # though they allow it. If this applies to your server, use:
+        self['xep_0077'].force_registration = True
+        
+        # Adjust the SSL version used:
+        self.ssl_version = ssl.PROTOCOL_TLS
+
+    def start(self, event):
+        self.send_presence()
+        self.get_roster()
+
+        # We're only concerned about registering, so nothing more to do here.
+        self.disconnect()
+
+    def register(self, iq):
+        resp = self.Iq()
+        resp['type'] = 'set'
+        resp['register']['username'] = self.boundjid.user
+        resp['register']['password'] = self.password
+
+        try:
+            resp.send(now=True)
+            logging.info("Account created for %s!" % self.boundjid)
+        except IqError as e:
+            logging.error("Could not register account: %s" %
+                    e.iq['error']['text'])
+            self.disconnect()
+        except IqTimeout:
+            logging.error("No response from server.")
+            self.disconnect()
+
 class SessionBot(sleekxmpp.ClientXMPP):
 
     def __init__(self, jid, password):
@@ -30,11 +75,18 @@ class SessionBot(sleekxmpp.ClientXMPP):
 
         # The session_start event 
         self.add_event_handler("session_start", self.start, threaded=True)
-
-        # The register event 
-        self.add_event_handler("register", self.register, threaded=True)
+        #self.add_event_handler("message", self.message)}
         
-        #self.add_event_handler("message", self.message)
+        # Setup the plugins.
+        self.register_plugin('xep_0030') # Service Discovery
+        self.register_plugin('xep_0004') # Data forms
+        self.register_plugin('xep_0066') # Out-of-band Data
+        self.register_plugin('xep_0077') # In-band Registration
+        self.register_plugin('xep_0030') # Service Discovery
+        self.register_plugin('xep_0199') # XMPP Ping
+
+        # Adjust the SSL version used:
+        self.ssl_version = ssl.PROTOCOL_TLS
 
     def start(self, event):
         self.send_presence()
@@ -48,24 +100,6 @@ class SessionBot(sleekxmpp.ClientXMPP):
         except IqTimeout:
              logging.error('Server is taking too long to respond')
              self.disconnect()
-
-
-    def register(self, iq):
-    
-        resp = self.Iq()
-        resp['type'] = 'set'
-        resp['register']['username'] = self.boundjid.user
-        resp['register']['password'] = self.password
-
-        try:
-            resp.send(now=True)
-            logging.info("Account created for %s!" % self.boundjid)
-        except IqError as e:
-            logging.error("Could not register account: %s" % e.iq['error']['text'])
-            self.disconnect()
-        except IqTimeout:
-            logging.error("No response from server.")
-            self.disconnect()
 
     def message(self, msg):
         if msg['type'] in ('chat', 'normal'):
@@ -99,49 +133,47 @@ if __name__ == '__main__':
     logging.basicConfig(level=opts.loglevel,
                         format='%(levelname)-8s %(message)s')
 
-    op_inicial = input(" 1.Register \n 2.Iniciar sesión \n Intruzca el numero de su opción:  ")
+    op_inicial = input(" 1.Register \n 2.Iniciar sesión \n Intruzca el numero de su opción: ")
     
     if opts.jid is None:
         opts.jid = raw_input("Username: ")
     if opts.password is None:
         opts.password = getpass.getpass("Password: ")
+        
+    if (op_inicial == "1"):
+        xmpp = RegisterBot(opts.jid, opts.password)
+        
+    elif (op_inicial == "2"):
+        xmpp = SessionBot(opts.jid, opts.password)
+    else:
+        sys.exit()
+    
 
-    # Setup the SessionBot and register plugins.
-    xmpp = SessionBot(opts.jid, opts.password)
-    xmpp.register_plugin('xep_0030') # Service Discovery
-    xmpp.register_plugin('xep_0004') # Data forms
-    xmpp.register_plugin('xep_0066') # Out-of-band Data
-    xmpp.register_plugin('xep_0077') # In-band Registration
-    xmpp.register_plugin('xep_0030') # Service Discovery
-    xmpp.register_plugin('xep_0199') # XMPP Ping
-
-    # Some servers don't advertise support for inband registration, even
-    # though they allow it. If this applies to your server, use:
-    xmpp['xep_0077'].force_registration = True
-
-    # Adjust the SSL version used:
-    xmpp.ssl_version = ssl.PROTOCOL_TLS
-
+    start = False
+    
     # Connect to the XMPP server and start process5ing XMPP stanzas.
     if xmpp.connect(('alumchat.xyz', 5222)):
         xmpp.process(block=True)
-        print("Done")
+        
         if (op_inicial == "1"):
             op = input("Desea iniciar sesión? (s/n):  ")
-
             if (op == "s"):
                 print("s")
                 op_inicial = "2"
+                start = True
             elif (op == "n"):
                 sys.exit()
     
         if (op_inicial == "2"):
-            xmpp.del_event_handler("register", xmpp.register)
-            print("Inicio de sesión realizado")
-            
-                
-        else:
-            print("Unable to connect.")
+            print(start)
+            if (start == True):
+                print("hello")
+                xmpp = SessionBot(opts.jid, opts.password)
+            if xmpp.connect(('alumchat.xyz', 5222)):
+                xmpp.process(block=False)
+                print("Inicio de sesión realizado")
+    else:
+        print("Unable to connect.")
 
    
         
