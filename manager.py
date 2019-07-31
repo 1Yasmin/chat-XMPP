@@ -162,7 +162,7 @@ if __name__ == '__main__':
     
     # Make register
     if (op_inicial == "1"):
-        xmpp = RegisterBot(opts.jid, opts.password)
+        xmp = RegisterBot(opts.jid, opts.password)
     
     #Make login
     elif (op_inicial == "2"):
@@ -174,32 +174,30 @@ if __name__ == '__main__':
 
     
     start = False
-    # Connect to the XMPP server and start process5ing XMPP stanzas.
-    if xmpp.connect(('alumchat.xyz', 5222)):
-        xmpp.process(block=True)
-        
-        # login after make register
-        if (op_inicial == "1"):
+    # login after make register
+    if (op_inicial == "1"):
+        # Connect to the XMPP server and start process5ing XMPP stanzas.
+        if xmp.connect(('alumchat.xyz', 5222)):
+            xmp.process(block=True)
             op = input("Desea iniciar sesión? (s/n):  ")
             if (op == "s"):
                 print("s")
                 op_inicial = "2"
-                connect = True
+                start = True
             elif (op == "n"):
                 sys.exit()
-        # Process for the active session
-        if (op_inicial == "2"):
+                
+    # Process for the active session
+    if (op_inicial == "2"):
+        #Only if the user comes from the register
+        if (start == True):
+            connect = True
+            xmpp = SessionBot(opts.jid, opts.password)
+        
+        if xmpp.connect(('alumchat.xyz', 5222)):
+            xmpp.process(block=True)
+            print("Inicio de sesión realizado")
             
-            #Only if the user comes from the register
-            if (start == True):
-                connect = True
-                xmpp = SessionBot(opts.jid, opts.password)
-                if xmpp.connect(('alumchat.xyz', 5222)):
-                    xmpp.process(block=False)
-                    print("Inicio de sesión realizado")
-                else:
-                    print("Unable to connect")
-                    sys.exit()
             # Options of the session
             while connect == True:
                 # Menu
@@ -215,6 +213,8 @@ if __name__ == '__main__':
                 # Add user
                 if(act == "2"):
                     contact = input("Contacto que desea añadir: ")
+                    xmpp.send_presence()
+                    xmpp.subscription = "both"
                     xmpp.send_presence(pto=contact, ptype='subscribe')
                                          
                 # Contact details
@@ -250,12 +250,3 @@ if __name__ == '__main__':
                     xmpp.removeAccount()
                     xmpp.disconnect()
                     ("Bye! ")
-                    
-                    
-                        
-    else:
-        print("Unable to connect.")
-
-   
-        
-   
