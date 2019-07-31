@@ -100,7 +100,6 @@ class SessionBot(sleekxmpp.ClientXMPP):
              logging.error('Server is taking too long to respond')
              self.disconnect()
         
-        self.disconnect()
 
     def message(self, msg):
         if msg['type'] in ('chat', 'normal'):
@@ -178,7 +177,7 @@ if __name__ == '__main__':
     if (op_inicial == "1"):
         # Connect to the XMPP server and start process5ing XMPP stanzas.
         if xmp.connect(('alumchat.xyz', 5222)):
-            xmp.process(block=True)
+            xmp.process(block=False)
             op = input("Desea iniciar sesión? (s/n):  ")
             if (op == "s"):
                 print("s")
@@ -195,7 +194,7 @@ if __name__ == '__main__':
             xmpp = SessionBot(opts.jid, opts.password)
         
         if xmpp.connect(('alumchat.xyz', 5222)):
-            xmpp.process(block=True)
+            xmpp.process(block=False)
             print("Inicio de sesión realizado")
             
             # Options of the session
@@ -214,7 +213,6 @@ if __name__ == '__main__':
                 if(act == "2"):
                     contact = input("Contacto que desea añadir: ")
                     xmpp.send_presence()
-                    xmpp.subscription = "both"
                     xmpp.send_presence(pto=contact, ptype='subscribe')
                                          
                 # Contact details
