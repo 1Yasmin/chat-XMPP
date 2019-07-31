@@ -23,7 +23,6 @@ else:
     raw_input = input
 
 
-
 class RegisterBot(sleekxmpp.ClientXMPP):
 
     def __init__(self, jid, password):
@@ -73,9 +72,9 @@ class SessionBot(sleekxmpp.ClientXMPP):
     def __init__(self, jid, password):
         sleekxmpp.ClientXMPP.__init__(self, jid, password)
 
-        # The session_start event 
+        # events 
         self.add_event_handler("session_start", self.start, threaded=True)
-        #self.add_event_handler("message", self.message)}
+        self.add_event_handler("message", self.message, threaded = True)
         
         # Setup the plugins.
         self.register_plugin('xep_0030') # Service Discovery
@@ -100,10 +99,30 @@ class SessionBot(sleekxmpp.ClientXMPP):
         except IqTimeout:
              logging.error('Server is taking too long to respond')
              self.disconnect()
+        
+        self.disconnect()
 
     def message(self, msg):
         if msg['type'] in ('chat', 'normal'):
-            msg.reply("Thanks for sending\n%(body)s" % msg).send()
+            print("Message\n%(body)s" % msg)
+            
+    def removeAccount(self):
+        resp = self.Iq()
+        resp['type'] = 'set'
+        resp['from'] = self.boundjid
+        resp['register'] = ' '
+        resp['register']['remove'] = ' '
+        
+        try:
+            print(resp)
+            resp.send(now=True)
+        except IqError as e:
+            logging.error("Could not delete account: %s" %
+                    e.iq['error']['text'])
+            self.disconnect()
+        except IqTimeout:
+            logging.error("No response from server.")
+            self.disconnect()
 
 
 if __name__ == '__main__':
@@ -135,43 +154,105 @@ if __name__ == '__main__':
 
     op_inicial = input(" 1.Register \n 2.Iniciar sesión \n Intruzca el numero de su opción: ")
     
+    # Set values of username and password
     if opts.jid is None:
         opts.jid = raw_input("Username: ")
     if opts.password is None:
         opts.password = getpass.getpass("Password: ")
-        
+    
+    # Make register
     if (op_inicial == "1"):
         xmpp = RegisterBot(opts.jid, opts.password)
-        
+    
+    #Make login
     elif (op_inicial == "2"):
         xmpp = SessionBot(opts.jid, opts.password)
+        connect = True
+    # Exit if the option does not exist
     else:
         sys.exit()
-    
 
-    start = False
     
+    start = False
     # Connect to the XMPP server and start process5ing XMPP stanzas.
     if xmpp.connect(('alumchat.xyz', 5222)):
         xmpp.process(block=True)
         
+        # login after make register
         if (op_inicial == "1"):
             op = input("Desea iniciar sesión? (s/n):  ")
             if (op == "s"):
                 print("s")
                 op_inicial = "2"
-                start = True
+                connect = True
             elif (op == "n"):
                 sys.exit()
-    
+        # Process for the active session
         if (op_inicial == "2"):
-            print(start)
+            
+            #Only if the user comes from the register
             if (start == True):
-                print("hello")
+                connect = True
                 xmpp = SessionBot(opts.jid, opts.password)
-            if xmpp.connect(('alumchat.xyz', 5222)):
-                xmpp.process(block=False)
-                print("Inicio de sesión realizado")
+                if xmpp.connect(('alumchat.xyz', 5222)):
+                    xmpp.process(block=False)
+                    print("Inicio de sesión realizado")
+                else:
+                    print("Unable to connect")
+                    sys.exit()
+            # Options of the session
+            while connect == True:
+                # Menu
+                act = input(" 1. Mostrar contactos y su estado \n 2. Agregar usuario a los contactos\n"+ 
+                            " 3. Detalles de un contacto \n 4. Mensaje a un contacto \n" +
+                            " 5. Chat grupal \n 6. Mensaje de presencia \n 7. Enviar archivo \n" +
+                            " 8. Cerrar sesión \n 9. Eliminar cuenta \n Escriba el numero de la opción: ")
+                        
+                #Actions 
+                # Show contacts and state
+                if(act == "1"):
+                    print(xmpp.client_roster)
+                # Add user
+                if(act == "2"):
+                    contact = input("Contacto que desea añadir: ")
+                    xmpp.send_presence(pto=contact, ptype='subscribe')
+                                         
+                # Contact details
+                if(act == "3"):
+                    pass
+                            
+                # Private message
+                if(act == "4"):
+                    dest = input("Cuenta destino: ")
+                    msg = input("mensaje: ")
+                    xmpp.send_message(mto=dest, mbody=msg, mtype='chat')
+                        
+                #Group chat
+                if(act == "5"):
+                    pass
+                            
+                #Presence message
+                if(act == "6"):
+                    pass
+                            
+                # Send a file
+                if(act == "7"):
+                    pass
+                        
+                # Sign out
+                if(act == "8"):
+                    print("Hasta pronto!")
+                    xmpp.disconnect()
+                    break
+                            
+                #Delete account
+                if(act == "9"):
+                    xmpp.removeAccount()
+                    xmpp.disconnect()
+                    ("Bye! ")
+                    
+                    
+                        
     else:
         print("Unable to connect.")
 
